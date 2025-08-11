@@ -19,6 +19,7 @@ public class BillResponseDto {
     private Long clientId;
     private String customerName;
     private String phoneNumber;
+    private BigDecimal remainingCredit;
     private String gstNumber;
     private String gstId;
     private String onlineTrxId;

@@ -45,6 +45,18 @@ public class Invoice {
   @Column(name = "INVOICE_ID", nullable = false)
   private Long id;
 
+  @Column(name = "PHONE_NUMBER", nullable = false)
+  private String phoneNumber;
+
+  @Column(name = "CUSTOMER_NAME", nullable = false)
+  private String customerName;
+
+  @Column(name = "CUSTOMER_AADHAR_ID", nullable = false)
+  private Long customerAadharId;
+
+  @Column(name = "STORE_ID", nullable = false)
+  private Long storeId;
+
   @Column(name = "INVOICE_NUMBER", nullable = false, unique = true, length = 300)
   private String invoiceNumber;
 

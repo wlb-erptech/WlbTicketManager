@@ -22,7 +22,6 @@ public class InvoiceMapper {
         .customerName(optionalTicket.map(Ticket::getCustomerName).orElse(null))
         .gstNumber(invoice.getGstNumber())
         .gstId(invoice.getGstId())
-        .productPurchaseType(optionalTicket.map(Ticket::getProductPurchaseType).orElse(null))
         .customerAadharId(optionalTicket.map(Ticket::getCustomerAadharId).orElse(null))
         .storeId(optionalTicket.map(ticket -> ticket.getStore().getId()).orElse(null))
         .payments(invoice.getPayments() != null

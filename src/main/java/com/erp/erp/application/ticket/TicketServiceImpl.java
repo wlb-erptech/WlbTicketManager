@@ -10,6 +10,7 @@ import com.erp.erp.application.dto.response.BillResponseDto;
 import com.erp.erp.application.dto.response.InvoiceResponseDto;
 import com.erp.erp.application.dto.response.TicketResponseDto;
 import com.erp.erp.application.item.CartService;
+import com.erp.erp.domain.enums.PaymentMode;
 import com.erp.erp.domain.enums.TicketStatus;
 import com.erp.erp.domain.model.client.Store;
 import com.erp.erp.domain.model.invoice.Invoice;
@@ -515,10 +516,15 @@ public class TicketServiceImpl implements TicketService {
   }
 
   private InvoiceResponseDto mapToInvoiceResponseDto(Invoice invoice) {
+    BigDecimal remainingCredit = invoice.getPayments().stream()
+        .filter(payment -> payment.getModeOfPayment() == PaymentMode.CREDIT)
+        .map(Payment::getAmount)
+        .reduce(BigDecimal.ZERO, BigDecimal::add);
     return InvoiceResponseDto.builder()
         .invoiceId(invoice.getId())
         .invoiceNumber(invoice.getInvoiceNumber())
         .invoiceDate(invoice.getInvoiceDate())
+        .remainingCredit(remainingCredit)
         .totalAmount(invoice.getTotalAmount())
         .gstNumber(invoice.getGstNumber())
         .payments(invoice.getPayments().stream().map(p -> PaymentDto.builder()
@@ -568,6 +574,10 @@ public class TicketServiceImpl implements TicketService {
     }
 
     Invoice invoice = Invoice.builder()
+        .phoneNumber(dto.phoneNumber())
+        .customerName(dto.customerName())
+        .customerAadharId(dto.customerAadharId())
+        .storeId(dto.storeId())
         .invoiceNumber(invoiceUUID.toString())
         .invoiceDate(LocalDate.now())
         .totalAmount(totalPaid)
@@ -688,14 +698,14 @@ public class TicketServiceImpl implements TicketService {
         .customerName(invoiceDto.customerName())
 //        .gstNumber(invoiceDto.gstNumber())
 //        .gstId(invoiceDto.gstId())
-        .productPurchaseType(invoiceDto.productPurchaseType())
+        .productPurchaseType("MOBILE")
 //        .modeOfPayment(invoiceDto.modeOfPayment())
         .customerAadharId(invoiceDto.customerAadharId())
         .itemId(item.getItemId())
         .acquisitionCost(cart.getAcquisitionCost())
         .refurbishedCost(cart.getRefurbishedCost())
         .isDeleted("N")
-        .itemSerialNo(cart.getItemSerialNo())
+        .itemSerialNo(cart.getImeiNo())
         .imeiNo(cart.getImeiNo())
         .batteryHealth(cart.getBatteryHealth())
         .warranty(cart.getWarranty())
