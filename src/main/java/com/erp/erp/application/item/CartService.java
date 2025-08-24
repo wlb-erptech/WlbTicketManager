@@ -9,6 +9,7 @@ import com.erp.erp.domain.model.item.CartItemDetail;
 import com.erp.erp.domain.model.item.CartItemDetailRepository;
 import com.erp.erp.domain.model.item.CartItemRepository;
 import com.erp.erp.domain.model.item.CartRepository;
+import com.erp.erp.domain.model.ticket.Ticket;
 import com.erp.erp.domain.model.ticket.TicketRepository;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.transaction.Transactional;
@@ -95,28 +96,61 @@ public class CartService {
       throw new EntityNotFoundException();
     }
     Page<CartItem> page = cartItemRepository.findByCartId(cart.get().getId(), pageable);
-    return page.map(ci -> {
-      List<CartItemDetailDTO> detailDtos = ci.getDetails().stream()
-          .map(d -> new CartItemDetailDTO(
-              d.getId(),
-              d.getItemSerialNo(),
-              d.getImeiNo(),
-              d.getBatteryHealth(),
-              d.getWarranty(),
-              d.getBoxFlag(),
-              d.getChargerFlag(),
-              d.getSealedFlag(),
-              d.getInvoiceFlag(),
-              d.getAcquisitionCost(),
-              d.getRefurbishedCost(),
-              d.getRamRomSpecs(),
-              d.getColorSpecs(),
-              d.getComment(),
-              d.getProductName(),
-              d.getBrand()
-          ))
-          .toList();
 
+    return page.map(ci -> {
+      // CHANGED: build detailDtos via two paths (existing details OR hydrate from Ticket)
+      List<CartItemDetailDTO> detailDtos;
+
+      if (ci.getDetails() != null && !ci.getDetails().isEmpty()) {
+        // unchanged path: existing persisted details
+        detailDtos = ci.getDetails().stream()
+            .map(d -> new CartItemDetailDTO(
+                d.getId(),
+                d.getItemSerialNo(),
+                d.getImeiNo(),
+                d.getBatteryHealth(),
+                d.getWarranty(),
+                d.getBoxFlag(),
+                d.getChargerFlag(),
+                d.getSealedFlag(),
+                d.getInvoiceFlag(),
+                d.getAcquisitionCost(),
+                d.getRefurbishedCost(),
+                d.getRamRomSpecs(),
+                d.getColorSpecs(),
+                d.getComment(),
+                d.getProductName(),
+                d.getBrand()
+            ))
+            .toList();
+      } else {
+        // ADDED: SELL path — hydrate from Ticket since itemId holds the ticketId
+        Ticket t = ticketRepository.findById(ci.getItemId())
+            .orElseThrow(() -> new EntityNotFoundException("Ticket not found: " + ci.getItemId())); // ADDED
+
+        detailDtos = List.of( // ADDED
+            new CartItemDetailDTO(
+                null,                                // no CartItemDetail row persisted  // ADDED
+                t.getItemSerialNo(),                // ADDED
+                t.getImeiNo(),                      // ADDED
+                t.getBatteryHealth(),               // ADDED
+                t.getWarranty(),                    // ADDED
+                t.getBoxFlag(),                     // ADDED
+                t.getChargerFlag(),                 // ADDED
+                t.getSealedFlag(),                  // ADDED
+                t.getInvoiceFlag(),                 // ADDED
+                t.getAcquisitionCost(),             // ADDED
+                t.getRefurbishedCost(),             // ADDED
+                t.getRamRomSpecs(),                 // ADDED
+                t.getColorSpecs(),                  // ADDED
+                t.getComment(),                     // ADDED
+                t.getProductName(),                 // ADDED
+                t.getBrand()                        // ADDED
+            )
+        );
+      }
+
+      // unchanged: assemble CartItemDTO
       return new CartItemDTO(
           ci.getId(),
           ci.getItemId(),
@@ -125,6 +159,7 @@ public class CartService {
       );
     });
   }
+
 
   /** Get cart for a user */
   public Cart getCart(String userEmail) {
