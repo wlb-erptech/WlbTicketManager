@@ -56,5 +56,6 @@ public class CartItem extends AbstractEntity {
   private Integer quantity;
 
   @OneToMany(mappedBy = "cartItem", cascade = CascadeType.ALL, orphanRemoval = true)
+  @Builder.Default
   private List<CartItemDetail> details = new ArrayList<>();
 }

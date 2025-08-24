@@ -4,6 +4,7 @@ import com.erp.erp.application.dto.AddBuyItemRequest;
 import com.erp.erp.application.dto.AddTicketsToSellCartRequest;
 import com.erp.erp.application.dto.BillDto;
 import com.erp.erp.application.dto.CartItemDTO;
+import com.erp.erp.application.dto.CartItemPatchRequest;
 import com.erp.erp.application.dto.InvoiceDto;
 import com.erp.erp.application.dto.StatusUpdateRequest;
 import com.erp.erp.application.dto.TicketStatusCount;
@@ -15,6 +16,7 @@ import com.erp.erp.application.ticket.TicketService;
 import com.erp.erp.domain.enums.TicketStatus;
 import com.erp.erp.domain.model.item.Cart;
 import jakarta.validation.Valid;
+import java.security.Principal;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -27,6 +29,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -175,7 +178,7 @@ public class TicketController {
       @RequestBody AddTicketsToSellCartRequest req) {
     Cart updated;
     try {
-      updated = cartService.addSellItem(username, req.getTicketIds());
+      updated = cartService.addSellItem(username, req);
     }
     catch (Exception e) {
       return ResponseEntity.internalServerError().body(e.getMessage());
@@ -308,5 +311,16 @@ public class TicketController {
     }
   }
 
+  @PatchMapping("/{cartType}/items/{cartItemId}")
+  public ResponseEntity<CartItemDTO> patchCartItem(
+      @PathVariable String cartType,
+      @PathVariable Long cartItemId,
+      @RequestBody CartItemPatchRequest request,
+      Principal principal   // or however you get userEmail
+  ) {
+    String userEmail = principal.getName();
+    CartItemDTO dto = cartService.patchCartItem(userEmail, cartType, cartItemId, request);
+    return ResponseEntity.ok(dto);
+  }
 
 }

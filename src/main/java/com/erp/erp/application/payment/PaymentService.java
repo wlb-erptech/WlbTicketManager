@@ -131,7 +131,6 @@ public class PaymentService {
       throw new IllegalArgumentException("Repayment exceeds outstanding credit (" + outstanding + ").");
     }
 
-    // 1) negative CREDIT
     Payment creditAdj = Payment.builder()
         .modeOfPayment(PaymentMode.CREDIT)
         .amount(amount.negate())
@@ -139,7 +138,6 @@ public class PaymentService {
         .build();
     invoice.addPayment(creditAdj);
 
-    // 2) actual payment
     Payment actual = Payment.builder()
         .modeOfPayment(dto.modeOfPayment())
         .transactionId(dto.transactionId())
@@ -204,7 +202,6 @@ public class PaymentService {
     return BillMapper.toDto(bill);
   }
 
-  // tiny helper
   private static void require(String actual, String expected, String message) {
     if (!Objects.equals(actual, expected)) throw new IllegalArgumentException(message);
   }

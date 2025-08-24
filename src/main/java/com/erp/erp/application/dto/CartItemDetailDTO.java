@@ -15,6 +15,7 @@ public record CartItemDetailDTO(
     String invoiceFlag,
     BigDecimal acquisitionCost,
     BigDecimal refurbishedCost,
+    BigDecimal sellingCost,
     String ramRomSpecs,
     String colorSpecs,
     String comment,

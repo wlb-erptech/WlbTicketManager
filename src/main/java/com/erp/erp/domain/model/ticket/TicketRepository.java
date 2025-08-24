@@ -6,6 +6,7 @@ import com.erp.erp.domain.model.client.Store;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -42,5 +43,12 @@ public interface TicketRepository extends JpaRepository<Ticket, Long>, JpaSpecif
 
   List<Ticket> findByBill_SoldTableId(Long billId);
 
+  @Query("""
+        SELECT t.ticketId
+        FROM Ticket t
+        WHERE t.ticketId IN :ids
+          AND t.ticketStatus = com.erp.erp.domain.enums.TicketStatus.LISTED
+    """)
+  Set<Long> findListedIds(@Param("ids") Set<Long> ids);
 
 }

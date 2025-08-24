@@ -1,8 +1,12 @@
 package com.erp.erp.application.item;
 
 import com.erp.erp.application.dto.AddBuyItemRequest;
+import com.erp.erp.application.dto.AddTicketsToSellCartRequest;
 import com.erp.erp.application.dto.CartItemDTO;
 import com.erp.erp.application.dto.CartItemDetailDTO;
+import com.erp.erp.application.dto.CartItemDetailUpdateDto;
+import com.erp.erp.application.dto.CartItemPatchRequest;
+import com.erp.erp.domain.enums.TicketStatus;
 import com.erp.erp.domain.model.item.Cart;
 import com.erp.erp.domain.model.item.CartItem;
 import com.erp.erp.domain.model.item.CartItemDetail;
@@ -14,10 +18,13 @@ import com.erp.erp.domain.model.ticket.TicketRepository;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.transaction.Transactional;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -54,6 +61,7 @@ public class CartService {
               d.getInvoiceFlag(),
               d.getAcquisitionCost(),
               d.getRefurbishedCost(),
+              d.getSellingCost(),
               d.getRamRomSpecs(),
               d.getColorSpecs(),
               d.getComment(),
@@ -116,6 +124,7 @@ public class CartService {
                 d.getInvoiceFlag(),
                 d.getAcquisitionCost(),
                 d.getRefurbishedCost(),
+                d.getSellingCost(),
                 d.getRamRomSpecs(),
                 d.getColorSpecs(),
                 d.getComment(),
@@ -140,8 +149,9 @@ public class CartService {
                 t.getSealedFlag(),                  // ADDED
                 t.getInvoiceFlag(),                 // ADDED
                 t.getAcquisitionCost(),             // ADDED
-                t.getRefurbishedCost(),             // ADDED
-                t.getRamRomSpecs(),                 // ADDED
+                t.getRefurbishedCost(),
+                null,
+                t.getRamRomSpecs(),// ADDED
                 t.getColorSpecs(),                  // ADDED
                 t.getComment(),                     // ADDED
                 t.getProductName(),                 // ADDED
@@ -158,16 +168,6 @@ public class CartService {
           detailDtos
       );
     });
-  }
-
-
-  /** Get cart for a user */
-  public Cart getCart(String userEmail) {
-    Optional<Cart> cart = cartRepo.findByUserEmail(userEmail);
-    if (cart.isEmpty()) {
-      throw new EntityNotFoundException();
-    }
-    return cart.get();
   }
 
   /** Get or create the buy cart for a user */
@@ -241,27 +241,100 @@ public class CartService {
     return cartRepo.save(cart);
   }
 
+//  @Transactional
+//  public Cart addSellItem(String userEmail, AddTicketsToSellCartRequest req) {
+//    Cart sellCart = getOrCreateSellCart(userEmail);
+//
+//    Set<Long> existingTicketIds = sellCart.getItems().stream()
+//        .map(CartItem::getItemId)
+//        .collect(Collectors.toSet());
+//
+//    Set<Long> existingListedTicketIds = ticketRepository.findListedIds(existingTicketIds);
+//
+//
+//    for (Long ticketId : req.getTicketIds()) {
+//      if (!existingListedTicketIds.contains(ticketId)) {
+//        CartItem item = CartItem.builder()
+//            .cart(sellCart)
+//            .itemId(ticketId)
+//            .quantity(1)
+//            .details(new ArrayList<>())
+//            .build();
+//        sellCart.getItems().add(item);
+//      }
+//    }
+//    return cartRepo.save(sellCart);
+//  }
+
   @Transactional
-  public Cart addSellItem(String userEmail, List<Long> ticketIds) {
+  public Cart addSellItem(String userEmail, AddTicketsToSellCartRequest req) {
     Cart sellCart = getOrCreateSellCart(userEmail);
 
+    // gather what's already in the cart (avoid duplicates)
     Set<Long> existingTicketIds = sellCart.getItems().stream()
         .map(CartItem::getItemId)
         .collect(Collectors.toSet());
 
-    for (Long ticketId : ticketIds) {
-      if (!existingTicketIds.contains(ticketId)) {
-        CartItem item = CartItem.builder()
-            .cart(sellCart)
-            .itemId(ticketId)
-            .quantity(1)
-            .details(new ArrayList<>())
-            .build();
-        sellCart.getItems().add(item);
-      }
+    // nothing to add?
+    if (req.getTicketIds() == null || req.getTicketIds().isEmpty()) {
+      return sellCart;
     }
+
+    // keep only LISTED ticket ids from the incoming set
+    Set<Long> requestedIds = new HashSet<>(req.getTicketIds()); // defensive copy
+    Set<Long> listedRequestedIds = ticketRepository.findListedIds(requestedIds); // JPQL you already have
+
+    // compute ids we actually need to add (listed AND not in cart already)
+    listedRequestedIds.removeAll(existingTicketIds);
+    if (listedRequestedIds.isEmpty()) {
+      return sellCart; // all requested tickets are either not LISTED or already present
+    }
+
+    // load all tickets in ONE go so we can populate details
+    List<Ticket> ticketsToAdd = ticketRepository.findAllById(listedRequestedIds);
+
+    for (Ticket t : ticketsToAdd) {
+      // Optional extra guards (comment out if not needed)
+      if (t.getTicketStatus() != TicketStatus.LISTED) continue;
+      if ("Y".equalsIgnoreCase(t.getIsDeleted())) continue;
+
+      // Build the cart item
+      CartItem item = CartItem.builder()
+          .cart(sellCart)        // owning side for CartItem
+          .itemId(t.getTicketId()) // SELL cart uses ticketId as itemId
+          .quantity(1)
+          .build();
+
+      // Populate CartItemDetail from Ticket using the builder
+      CartItemDetail detail = CartItemDetail.builder()
+          .cartItem(item)                        // IMPORTANT: owning side for detail
+          .itemSerialNo(t.getItemSerialNo())
+          .imeiNo(t.getImeiNo())
+          .batteryHealth(t.getBatteryHealth())
+          .warranty(t.getWarranty())
+          .boxFlag(t.getBoxFlag())
+          .chargerFlag(t.getChargerFlag())
+          .sealedFlag(t.getSealedFlag())
+          .invoiceFlag(t.getInvoiceFlag())
+          .acquisitionCost(t.getAcquisitionCost())
+          .refurbishedCost(t.getRefurbishedCost())
+          .sellingCost(req.getSellingCost())
+          .ramRomSpecs(t.getRamRomSpecs())
+          .colorSpecs(t.getColorSpecs())
+          .comment(t.getComment())
+          .productName(t.getProductName())
+          .brand(t.getBrand())
+          .build();
+
+      // keep the inverse side in sync
+      item.getDetails().add(detail);
+      sellCart.getItems().add(item);
+    }
+
+    // cascade from Cart -> CartItem -> CartItemDetail will persist everything
     return cartRepo.save(sellCart);
   }
+
 
 
   /** Clear all items after checkout */
@@ -302,5 +375,66 @@ public class CartService {
     }
   }
 
+  @Transactional
+  public CartItemDTO patchCartItem(
+      String userEmail,
+      String cartType,
+      Long cartItemId,
+      CartItemPatchRequest req
+  ) {
+    Cart cart = cartRepo.findByUserEmailAndCartType(userEmail, cartType)
+        .orElseThrow(() -> new EntityNotFoundException("Cart not found for user/type"));
+
+    // Load item, ensure it belongs to this cart
+    CartItem item = cartItemRepository.findById(cartItemId)
+        .orElseThrow(() -> new EntityNotFoundException("Cart item not found: " + cartItemId));
+
+    if (!item.getCart().getId().equals(cart.getId())) {
+      throw new IllegalArgumentException("Cart item does not belong to user's cart");
+    }
+
+    if (req.details() != null) {
+      Map<Long, CartItemDetail> existingById = item.getDetails().stream()
+          .filter(d -> d.getId() != null)
+          .collect(Collectors.toMap(CartItemDetail::getId, Function.identity()));
+
+      Set<Long> seen = new HashSet<>();
+
+      for (CartItemDetailUpdateDto d : req.details()) {
+        CartItemDetail entity;
+        if (d.id() != null) {
+          entity = existingById.get(d.id());
+          if (entity == null) {
+            throw new EntityNotFoundException("Detail not found: " + d.id());
+          }
+          seen.add(d.id());
+        } else {
+          entity = CartItemDetail.builder()
+              .cartItem(item)
+              .build();
+          item.getDetails().add(entity);
+        }
+
+        if (d.acquisitionCost() != null) entity.setAcquisitionCost(d.acquisitionCost());
+        if (d.refurbishedCost() != null) entity.setRefurbishedCost(d.refurbishedCost());
+        if (d.ramRomSpecs() != null)    entity.setRamRomSpecs(d.ramRomSpecs());
+        if (d.colorSpecs() != null)     entity.setColorSpecs(d.colorSpecs());
+        if (d.sellingCost() != null)    entity.setSellingCost(d.sellingCost());
+      }
+    }
+
+    cartItemRepository.save(item);
+
+    List<CartItemDetailDTO> detailDtos = item.getDetails().stream()
+        .map(d -> new CartItemDetailDTO(
+            d.getId(), d.getItemSerialNo(), d.getImeiNo(), d.getBatteryHealth(), d.getWarranty(),
+            d.getBoxFlag(), d.getChargerFlag(), d.getSealedFlag(), d.getInvoiceFlag(),
+            d.getAcquisitionCost(), d.getRefurbishedCost(), d.getSellingCost(), d.getRamRomSpecs(), d.getColorSpecs(),
+            d.getComment(), d.getProductName(), d.getBrand()
+        ))
+        .toList();
+
+    return new CartItemDTO(item.getId(), item.getItemId(), item.getQuantity(), detailDtos);
+  }
 
 }

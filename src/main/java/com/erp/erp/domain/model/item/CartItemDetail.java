@@ -73,6 +73,9 @@ public class CartItemDetail extends AbstractEntity {
   @Column(name = "REFURBISHED_COST")
   private BigDecimal refurbishedCost;
 
+  @Column(name = "SELLING_COST")
+  private BigDecimal sellingCost;
+
   @Column(name = "INTERNAL_MEMORY")
   private String ramRomSpecs;
 
