@@ -1,12 +1,10 @@
 package com.erp.erp.application.payment;
 
-import com.erp.erp.application.dto.InvoiceProductDto;
-import com.erp.erp.application.dto.PaymentDto;
 import com.erp.erp.application.dto.response.BillResponseDto;
 import com.erp.erp.application.dto.response.InvoiceResponseDto;
 import com.erp.erp.application.dto.response.PaymentRequestDto;
-import com.erp.erp.application.dto.response.PaymentResponseDto;
 import com.erp.erp.domain.enums.PaymentMode;
+import com.erp.erp.domain.model.client.Store;
 import com.erp.erp.domain.model.invoice.Invoice;
 import com.erp.erp.domain.model.invoice.InvoiceRepository;
 import com.erp.erp.domain.model.payment.Payment;
@@ -15,14 +13,20 @@ import com.erp.erp.domain.model.ticket.SoldStatus;
 import com.erp.erp.domain.model.ticket.SoldStatusRepository;
 import com.erp.erp.domain.model.ticket.Ticket;
 import com.erp.erp.domain.model.ticket.TicketRepository;
+import com.erp.erp.domain.model.user.User;
+import com.erp.erp.domain.model.user.UserRepository;
 import com.erp.erp.infrastructure.utility.BillMapper;
+import com.erp.erp.infrastructure.utility.InvoiceMapper;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.transaction.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -32,203 +36,176 @@ public class PaymentService {
   private final InvoiceRepository invoiceRepository;
   private final SoldStatusRepository soldStatusRepository;
   private final TicketRepository ticketRepository;
+  private final UserRepository userRepository;
 
   public PaymentService(PaymentRepository repo,
       InvoiceRepository invoiceRepository,
       SoldStatusRepository soldStatusRepository,
-      TicketRepository ticketRepository) {
+      TicketRepository ticketRepository,
+      UserRepository userRepository) {
     this.repo = repo;
     this.invoiceRepository = invoiceRepository;
     this.soldStatusRepository = soldStatusRepository;
     this.ticketRepository = ticketRepository;
+    this.userRepository = userRepository;
   }
 
-  public List<InvoiceResponseDto> getInvoiceCreditPayments() {
-    List<Invoice> invoice = invoiceRepository.findAllWithInvoiceCredits();
-    List<InvoiceResponseDto> responseDtos = new ArrayList<>();
-    for (Invoice value : invoice) {
-      responseDtos.add(mapToInvoiceResponseDto(value));
-    }
-    return responseDtos;
+//  public List<InvoiceResponseDto> getInvoiceCreditPayments(String username) {
+//    Set<Long> storeIds = getStoreIds(username);
+//    List<Invoice> invoice = invoiceRepository.findAllWithInvoiceCredits(storeIds);
+//    List<InvoiceResponseDto> responseDtos = new ArrayList<>();
+//    for (Invoice value : invoice) {
+//      responseDtos.add(InvoiceMapper.mapToInvoiceResponseDto(value));
+//    }
+//    return responseDtos;
+//  }
+  public List<InvoiceResponseDto> getInvoiceCreditPayments(String username) {
+    return invoiceRepository.findAllWithInvoiceCredits(getStoreIds(username)).stream()
+        .filter(i -> i.netCredit().signum() > 0)
+        .map(InvoiceMapper::mapToInvoiceResponseDto)
+        .toList();
   }
 
-  public List<BillResponseDto> getBillCreditPayments() {
-    List<SoldStatus> bills = soldStatusRepository.findAllWithBillCredits();
-    List<BillResponseDto> responseDtos = new ArrayList<>();
-    for (SoldStatus value : bills) {
-      responseDtos.add(BillMapper.toDto(value));
+//  public List<BillResponseDto> getBillCreditPayments(String username) {
+//    Set<Long> storeIds = getStoreIds(username);
+//    List<SoldStatus> bills = soldStatusRepository.findAllWithBillCredits(storeIds);
+//    List<BillResponseDto> responseDtos = new ArrayList<>();
+//    for (SoldStatus value : bills) {
+//      responseDtos.add(BillMapper.toDto(value));
+//    }
+//    return responseDtos;
+//  }
+
+  public List<BillResponseDto> getBillCreditPayments(String username) {
+    System.out.println("StoreId for username : " + getStoreIds(username));
+    System.out.println("SoldStatus : " + soldStatusRepository.findAllWithBillCredits(getStoreIds(username)).get(0).getSoldTableId());
+    return soldStatusRepository.findAllWithBillCredits(getStoreIds(username)).stream()
+        .filter(b -> b.netCredit().signum() > 0)
+        .map(BillMapper::toDto)
+        .toList();
+  }
+
+  private Set<Long> getStoreIds(String username) {
+    Optional<User> user = userRepository.findByUserEmail(username);
+    if (user.isEmpty()) {
+      throw new EntityNotFoundException("No User found with your email!");
     }
-    return responseDtos;
+    return Optional.ofNullable(user.get().getStores())
+        .orElseGet(Collections::emptySet)
+        .stream()
+        .map(Store::getId)
+        .filter(Objects::nonNull)
+        .collect(Collectors.toSet());
   }
 
   @Transactional
   public InvoiceResponseDto addPaymentForInvoice(PaymentRequestDto dto) {
-    Invoice invoice;
-    Ticket ticket = null;
-    if (Objects.equals(dto.creditType(), "BUY") && dto.invoiceOrBillId() != null) {
-      invoice = invoiceRepository.findById(dto.invoiceOrBillId())
-          .orElseThrow(() -> new EntityNotFoundException("Invoice not found: " + dto.invoiceOrBillId()));
-    } else if (Objects.equals(dto.creditType(), "SELL") && dto.invoiceOrBillId() != null) {
-      throw new IllegalArgumentException("Credit Type can not be SELL");
-    } else if (dto.invoiceOrBillId() == null) {
-      throw new IllegalArgumentException("No Invoice or Bill Id present?");
-    } else {
-      throw new IllegalArgumentException("Credit Type is invalid");
+    require(dto.creditType(), "BUY", "Credit Type must be BUY for invoice payments.");
+    Long invoiceId = Objects.requireNonNull(dto.invoiceOrBillId(), "No Invoice Id present.");
+
+    Invoice invoice = invoiceRepository.findById(invoiceId)
+        .orElseThrow(() -> new EntityNotFoundException("Invoice not found: " + invoiceId));
+
+    List<Ticket> tickets = ticketRepository.findByInvoice_Id(invoiceId);
+
+    if (tickets.isEmpty()) {
+      throw new EntityNotFoundException("No tickets associated to invoice.");
     }
-    if (dto.ticketId() != null) {
-      ticket = ticketRepository.findById(dto.ticketId())
-          .orElseThrow(() -> new EntityNotFoundException("Ticket not found: " + dto.ticketId()));
+    boolean anyTicketUpdated = false;
+    for (Ticket t : tickets) {
+      if (t.getInvoice() == null || !invoiceId.equals(t.getInvoice().getId())) {
+        t.setInvoice(invoice);
+        anyTicketUpdated = true;
+      }
+    }
+    if (anyTicketUpdated) {
+      ticketRepository.saveAll(tickets); // owning side persists the INVOICE_ID
     }
 
-    BigDecimal original = new BigDecimal(String.valueOf(dto.amount()));
-    BigDecimal negated = original.negate();
-    Payment payment1 = Payment.builder()
+    BigDecimal amount = Objects.requireNonNull(dto.amount(), "Amount is required.");
+    if (amount.signum() <= 0) throw new IllegalArgumentException("Amount must be positive.");
+
+    BigDecimal outstanding = invoice.netCredit();
+    if (outstanding.signum() <= 0) throw new IllegalStateException("No outstanding credit to repay.");
+    if (amount.compareTo(outstanding) > 0) {
+      throw new IllegalArgumentException("Repayment exceeds outstanding credit (" + outstanding + ").");
+    }
+
+    // 1) negative CREDIT
+    Payment creditAdj = Payment.builder()
         .modeOfPayment(PaymentMode.CREDIT)
-        .amount(negated)
+        .amount(amount.negate())
         .paidAt(LocalDate.now())
-        .invoice(invoice)
         .build();
-    repo.save(payment1);
-    Payment payment = Payment.builder()
+    invoice.addPayment(creditAdj);
+
+    // 2) actual payment
+    Payment actual = Payment.builder()
         .modeOfPayment(dto.modeOfPayment())
         .transactionId(dto.transactionId())
-        .amount(dto.amount())
+        .amount(amount)
         .paidAt(LocalDate.now())
-        .invoice(invoice)
         .build();
-    repo.save(payment);
-    if (Objects.equals(dto.creditType(), "BUY")) {
-      if (invoice != null) {
-        List<Payment> payments = invoice.getPayments();
-        payments.add(payment1);
-        payments.add(payment);
-        invoice.setPayments(payments);
-      }
-    } else {
-      throw new IllegalArgumentException("Credit Type can be SELL only");
-    }
-    if (ticket != null) {
-      ticket.setInvoice(invoice);
-    }
+    invoice.addPayment(actual);
+    invoiceRepository.save(invoice);
 
-    if (invoice != null) {
-      invoiceRepository.save(invoice);
-    }
-    if (ticket != null) {
-      ticketRepository.save(ticket);
-    }
-
-    if (invoice != null) {
-      invoiceRepository.save(invoice);
-      return mapToInvoiceResponseDto(invoice);
-    }
-    else {
-      throw new IllegalArgumentException("No Invoice present");
-    }
+    return InvoiceMapper.mapToInvoiceResponseDto(invoice);
   }
 
   @Transactional
   public BillResponseDto addPaymentForBill(PaymentRequestDto dto) {
-    SoldStatus bill = null;
-    Ticket ticket = null;
-    if (Objects.equals(dto.creditType(), "SELL") && dto.invoiceOrBillId() != null) {
-      bill = soldStatusRepository.findById(dto.invoiceOrBillId())
-          .orElseThrow(() -> new EntityNotFoundException("Bill not found: " + dto.invoiceOrBillId()));
-    } else if (Objects.equals(dto.creditType(), "BUY") && dto.invoiceOrBillId() != null) {
-      throw new IllegalArgumentException("Credit Type can not be BUY");
-    } else if (dto.invoiceOrBillId() == null) {
-      throw new IllegalArgumentException("No Invoice or Bill Id present?");
-    } else {
-      throw new IllegalArgumentException("Credit Type is invalid");
+    require(dto.creditType(), "SELL", "Credit Type must be SELL for invoice payments.");
+    Long billId = Objects.requireNonNull(dto.invoiceOrBillId(), "No Bill Id present.");
+
+    SoldStatus bill = soldStatusRepository.findById(billId)
+        .orElseThrow(() -> new EntityNotFoundException("Bill not found: " + billId));
+
+    List<Ticket> tickets = ticketRepository.findByBill_SoldTableId(billId);
+
+    if (tickets.isEmpty()) {
+      throw new EntityNotFoundException("No tickets associated to bill.");
     }
-    if (dto.ticketId() != null) {
-      ticket = ticketRepository.findById(dto.ticketId())
-          .orElseThrow(() -> new EntityNotFoundException("Ticket not found: " + dto.ticketId()));
+    boolean anyTicketUpdated = false;
+    for (Ticket t : tickets) {
+      if (t.getBill() == null || !billId.equals(t.getBill().getSoldTableId())) {
+        t.setBill(bill);
+        anyTicketUpdated = true;
+      }
+    }
+    if (anyTicketUpdated) {
+      ticketRepository.saveAll(tickets);
     }
 
-    BigDecimal original = new BigDecimal(String.valueOf(dto.amount()));
-    BigDecimal negated = original.negate();
-    Payment payment1 = Payment.builder()
+    BigDecimal amount = Objects.requireNonNull(dto.amount(), "Amount is required.");
+    if (amount.signum() <= 0) throw new IllegalArgumentException("Amount must be positive.");
+
+    BigDecimal outstanding = bill.netCredit();
+    if (outstanding.signum() <= 0) throw new IllegalStateException("No outstanding credit to repay.");
+    if (amount.compareTo(outstanding) > 0) {
+      throw new IllegalArgumentException("Repayment exceeds outstanding credit (" + outstanding + ").");
+    }
+
+    Payment creditAdj = Payment.builder()
         .modeOfPayment(PaymentMode.CREDIT)
-        .amount(negated)
+        .amount(amount.negate())
         .paidAt(LocalDate.now())
-        .bill(bill)
         .build();
-    repo.save(payment1);
-    Payment payment = Payment.builder()
+    bill.addPayment(creditAdj);
+
+    Payment actual = Payment.builder()
         .modeOfPayment(dto.modeOfPayment())
         .transactionId(dto.transactionId())
-        .amount(dto.amount())
+        .amount(amount)
         .paidAt(LocalDate.now())
-        .bill(bill)
         .build();
-    repo.save(payment);
-    if (Objects.equals(dto.creditType(), "SELL")) {
-      if (bill != null) {
-        List<Payment> payments = bill.getPayments();
-        payments.add(payment1);
-        payments.add(payment);
-        bill.setPayments(payments);
-      }
-    } else {
-      throw new IllegalArgumentException("Credit Type can be BUY or SELL only");
-    }
-    if (ticket != null) {
-      ticket.setBill(bill);
-    }
-    if (bill != null) {
-      soldStatusRepository.save(bill);
-    }
-    if (ticket != null) {
-      ticketRepository.save(ticket);
-    }
+    bill.addPayment(actual);
+    soldStatusRepository.save(bill);
 
-    if (bill != null) {
-      soldStatusRepository.save(bill);
-      return BillMapper.toDto(bill);
-    }
-    else {
-      throw new IllegalArgumentException("No Invoice present");
-    }
+    return BillMapper.toDto(bill);
   }
 
-  private InvoiceResponseDto mapToInvoiceResponseDto(Invoice invoice) {
-    BigDecimal remainingCredit = invoice.getPayments().stream()
-        .filter(payment -> payment.getModeOfPayment() == PaymentMode.CREDIT)
-        .map(Payment::getAmount)
-        .reduce(BigDecimal.ZERO, BigDecimal::add);
-    return InvoiceResponseDto.builder()
-        .invoiceId(invoice.getId())
-        .invoiceNumber(invoice.getInvoiceNumber())
-        .invoiceDate(invoice.getInvoiceDate())
-        .remainingCredit(remainingCredit)
-        .storeId(invoice.getStoreId())
-        .phoneNumber(invoice.getPhoneNumber())
-        .customerAadharId(invoice.getCustomerAadharId())
-        .totalAmount(invoice.getTotalAmount())
-        .gstNumber(invoice.getGstNumber())
-        .payments(invoice.getPayments().stream().map(p -> PaymentDto.builder()
-            .modeOfPayment(p.getModeOfPayment())
-            .amount(p.getAmount())
-            .transactionId(p.getTransactionId())
-            .paidAt(p.getPaidAt())
-            .build()).toList())
-        .products(invoice.getTickets().stream().map(t -> InvoiceProductDto.builder()
-            .ticketId(t.getTicketId())
-            .itemId(t.getItemId())
-            .productName(t.getProductName())
-            .brand(t.getBrand())
-            .ramRomSpecs(t.getRamRomSpecs())
-            .colorSpecs(t.getColorSpecs())
-            .acquisitionCost(t.getAcquisitionCost())
-            .refurbishedCost(t.getRefurbishedCost())
-            .imeiNo(t.getImeiNo())
-            .serialNo(t.getItemSerialNo())
-            .boxFlag(t.getBoxFlag())
-            .chargerFlag(t.getChargerFlag())
-            .sealedFlag(t.getSealedFlag())
-            .warranty(t.getWarranty())
-            .build()).toList())
-        .build();
+  // tiny helper
+  private static void require(String actual, String expected, String message) {
+    if (!Objects.equals(actual, expected)) throw new IllegalArgumentException(message);
   }
 }

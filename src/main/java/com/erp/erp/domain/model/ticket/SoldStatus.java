@@ -54,6 +54,9 @@ public class SoldStatus extends AbstractEntity {
     @Column(name = "CLIENT_ID", nullable = false)
     private Long clientId;
 
+    @Column(name = "STORE_ID", nullable = false)
+    private Long storeId;
+
     @Column(name = "CUSTOMER_NAME", nullable = false)
     private String customerName;
 
@@ -85,9 +88,22 @@ public class SoldStatus extends AbstractEntity {
     private String isDeleted;
 
     @OneToMany(mappedBy = "bill", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Builder.Default
     private List<Payment> payments = new ArrayList<>();
 
     @OneToMany(mappedBy = "bill", cascade = CascadeType.ALL)
     private List<Ticket> tickets = new ArrayList<>();
 
+    public void addPayment(Payment p) {
+        p.setBill(this);
+        this.payments.add(p);
+    }
+
+    public BigDecimal netCredit() {
+        return payments == null ? BigDecimal.ZERO
+            : payments.stream()
+                .filter(p -> p.getModeOfPayment() == PaymentMode.CREDIT)
+                .map(Payment::getAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
 }

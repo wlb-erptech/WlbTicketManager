@@ -2,15 +2,12 @@ package com.erp.erp.application.ticket;
 
 import com.erp.erp.application.dto.BillDto;
 import com.erp.erp.application.dto.InvoiceDto;
-import com.erp.erp.application.dto.InvoiceProductDto;
-import com.erp.erp.application.dto.PaymentDto;
 import com.erp.erp.application.dto.TicketDto;
 import com.erp.erp.application.dto.TicketStatusCount;
 import com.erp.erp.application.dto.response.BillResponseDto;
 import com.erp.erp.application.dto.response.InvoiceResponseDto;
 import com.erp.erp.application.dto.response.TicketResponseDto;
 import com.erp.erp.application.item.CartService;
-import com.erp.erp.domain.enums.PaymentMode;
 import com.erp.erp.domain.enums.TicketStatus;
 import com.erp.erp.domain.model.client.Store;
 import com.erp.erp.domain.model.invoice.Invoice;
@@ -20,7 +17,6 @@ import com.erp.erp.domain.model.item.CartItem;
 import com.erp.erp.domain.model.item.CartItemDetail;
 import com.erp.erp.domain.model.item.CartRepository;
 import com.erp.erp.domain.model.payment.Payment;
-import com.erp.erp.domain.model.payment.PaymentRepository;
 import com.erp.erp.domain.model.ticket.SoldStatus;
 import com.erp.erp.domain.model.ticket.SoldStatusRepository;
 import com.erp.erp.domain.model.ticket.Ticket;
@@ -77,7 +73,6 @@ public class TicketServiceImpl implements TicketService {
   private final UserRepository userRepository;
   private final CartService cartService;
   private final InvoiceRepository invoiceRepository;
-  private final PaymentRepository paymentRepository;
   private final CartRepository cartRepository;
 
   static {
@@ -93,15 +88,6 @@ public class TicketServiceImpl implements TicketService {
         TicketStatus.LISTED, Set.of(QC2_USER, MANAGER),
         TicketStatus.SCRAPED, Set.of(QC2_USER, MANAGER))
     );
-//    TRANSITION_ROLE_MAP.put(TicketStatus.QC3, Map.of(
-//        TicketStatus.QC4, Set.of(QC3_USER, MANAGER),
-//        TicketStatus.LISTED, Set.of(QC3_USER, MANAGER),
-//        TicketStatus.SCRAPED, Set.of(QC3_USER, MANAGER))
-//    );
-//    TRANSITION_ROLE_MAP.put(TicketStatus.QC4, Map.of(
-//        TicketStatus.LISTED, Set.of(QC4_USER, MANAGER),
-//        TicketStatus.SCRAPED, Set.of(QC4_USER, MANAGER))
-//    );
     TRANSITION_ROLE_MAP.put(TicketStatus.LISTED, Map.of(
         TicketStatus.SCRAPED, Set.of(LISTED_USER, MANAGER),
         TicketStatus.QC, Set.of(LISTED_USER, MANAGER),
@@ -511,50 +497,18 @@ public class TicketServiceImpl implements TicketService {
       }
     }
     cartService.clearCart(cart);
-    Invoice invoice = createInvoice(invoiceDto, tickets, totalAcqCost);
-    return mapToInvoiceResponseDto(invoice);
+    Invoice invoice = createInvoice(user.get(), invoiceDto, tickets, totalAcqCost);
+    return InvoiceMapper.mapToInvoiceResponseDto(invoice);
   }
-
-  private InvoiceResponseDto mapToInvoiceResponseDto(Invoice invoice) {
-    BigDecimal remainingCredit = invoice.getPayments().stream()
-        .filter(payment -> payment.getModeOfPayment() == PaymentMode.CREDIT)
-        .map(Payment::getAmount)
-        .reduce(BigDecimal.ZERO, BigDecimal::add);
-    return InvoiceResponseDto.builder()
-        .invoiceId(invoice.getId())
-        .invoiceNumber(invoice.getInvoiceNumber())
-        .invoiceDate(invoice.getInvoiceDate())
-        .remainingCredit(remainingCredit)
-        .totalAmount(invoice.getTotalAmount())
-        .gstNumber(invoice.getGstNumber())
-        .payments(invoice.getPayments().stream().map(p -> PaymentDto.builder()
-            .modeOfPayment(p.getModeOfPayment())
-            .amount(p.getAmount())
-            .transactionId(p.getTransactionId())
-            .paidAt(p.getPaidAt())
-            .build()).toList())
-        .products(invoice.getTickets().stream().map(t -> InvoiceProductDto.builder()
-            .ticketId(t.getTicketId())
-            .itemId(t.getItemId())
-            .productName(t.getProductName())
-            .brand(t.getBrand())
-            .ramRomSpecs(t.getRamRomSpecs())
-            .colorSpecs(t.getColorSpecs())
-            .acquisitionCost(t.getAcquisitionCost())
-            .refurbishedCost(t.getRefurbishedCost())
-            .imeiNo(t.getImeiNo())
-            .serialNo(t.getItemSerialNo())
-            .boxFlag(t.getBoxFlag())
-            .chargerFlag(t.getChargerFlag())
-            .sealedFlag(t.getSealedFlag())
-            .warranty(t.getWarranty())
-            .build()).toList())
-        .build();
-  }
-
 
   @Transactional
-  public Invoice createInvoice(InvoiceDto dto, List<Ticket> tickets, BigDecimal totalAcqCost) {
+  public Invoice createInvoice(User user, InvoiceDto dto, List<Ticket> tickets, BigDecimal totalAcqCost) {
+    Optional<Store> matchingStore = user.getStores().stream()
+        .filter(s -> s.getId().equals(dto.storeId()))
+        .findFirst();
+    if (matchingStore.isEmpty()) {
+      throw new IllegalArgumentException("No store found with your ID for " + user.getUserEmail());
+    }
     UUID invoiceUUID = UUID.randomUUID();
     List<Payment> payments = dto.payments().stream().map(paymentDto -> Payment.builder()
         .modeOfPayment(paymentDto.getModeOfPayment())
@@ -573,6 +527,7 @@ public class TicketServiceImpl implements TicketService {
       throw new IllegalArgumentException("Please pay full cart amount " + totalAcqCost + " before proceeding.");
     }
 
+    System.out.println("storeId : " + dto.storeId());
     Invoice invoice = Invoice.builder()
         .phoneNumber(dto.phoneNumber())
         .customerName(dto.customerName())
@@ -620,6 +575,12 @@ public class TicketServiceImpl implements TicketService {
     if (user.isEmpty()) {
       throw new UsernameNotFoundException("No user found for user " + userEmail);
     }
+    Optional<Store> matchingStore = user.get().getStores().stream()
+        .filter(s -> s.getId().equals(billDto.storeId()))
+        .findFirst();
+    if (matchingStore.isEmpty()) {
+      throw new IllegalArgumentException("No store found with your ID for " + user.get().getUserEmail());
+    }
     Cart sellCart = cartService.getOrCreateSellCart(userEmail);
 
     List<Long> ticketIds = sellCart.getItems().stream()
@@ -638,10 +599,12 @@ public class TicketServiceImpl implements TicketService {
         ticket.setTicketStatus(TicketStatus.SOLD);
       }
     }
+    System.out.println("storeId sell : " + billDto.storeId());
     SoldStatus soldStatus = SoldStatus.builder()
         .clientId(user.get().getClientId())
         .phoneNumber(billDto.phoneNumber())
         .customerName(billDto.customerName())
+        .storeId(billDto.storeId())
         .gstId(billDto.gstId())
         .onlineTrxId(billDto.onlineTrxId())
         .placeOfSale(billDto.placeOfSale())

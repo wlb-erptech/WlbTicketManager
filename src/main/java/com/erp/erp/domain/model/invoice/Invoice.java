@@ -1,5 +1,6 @@
 package com.erp.erp.domain.model.invoice;
 
+import com.erp.erp.domain.enums.PaymentMode;
 import com.erp.erp.domain.model.payment.Payment;
 import com.erp.erp.domain.model.ticket.Ticket;
 import jakarta.persistence.CascadeType;
@@ -14,6 +15,7 @@ import jakarta.persistence.TableGenerator;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
@@ -75,6 +77,20 @@ public class Invoice {
   @OneToMany(mappedBy = "invoice", cascade = CascadeType.ALL)
   private List<Ticket> tickets;
 
-  @OneToMany(mappedBy = "invoice", cascade = CascadeType.ALL)
-  private List<Payment> payments;
+  @OneToMany(mappedBy = "invoice", cascade = CascadeType.ALL, orphanRemoval = true)
+  @Builder.Default
+  private List<Payment> payments = new ArrayList<>();
+
+  public void addPayment(Payment p) {
+    p.setInvoice(this);
+    this.payments.add(p);
+  }
+
+  public BigDecimal netCredit() {
+    return payments == null ? BigDecimal.ZERO
+        : payments.stream()
+            .filter(p -> p.getModeOfPayment() == PaymentMode.CREDIT)
+            .map(Payment::getAmount)
+            .reduce(BigDecimal.ZERO, BigDecimal::add);
+  }
 }

@@ -13,6 +13,7 @@ import lombok.Builder;
 public record BillDto(
     Long clientId,
     String phoneNumber,
+    Long storeId,
     String customerName,
     String gstId,
     String onlineTrxId,

@@ -38,5 +38,9 @@ public interface TicketRepository extends JpaRepository<Ticket, Long>, JpaSpecif
 
   Page<Ticket> findByStoreIn(Collection<Store> stores, Pageable pg);
 
+  List<Ticket> findByInvoice_Id(Long invoiceId);
+
+  List<Ticket> findByBill_SoldTableId(Long billId);
+
 
 }

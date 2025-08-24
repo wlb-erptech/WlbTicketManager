@@ -6,11 +6,8 @@ import com.erp.erp.domain.enums.PaymentMode;
 
 public record PaymentRequestDto(
     String creditType,
-    Long id,
     Long invoiceOrBillId,
-    Long ticketId,
     PaymentMode modeOfPayment,
-    String customerName,
     BigDecimal amount,
     String transactionId
 ) {}
