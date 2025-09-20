@@ -41,12 +41,12 @@ public class ProductService {
         }
         List<String> RAMROMSpecs = new ArrayList<>();
         List<String> ColorSpecs = new ArrayList<>();
-        if (!product.get().getInternalMemory().isEmpty() && !product.get().getInternalMemory().isEmpty()) {
+        if (product.get().getInternalMemory() != null && !product.get().getInternalMemory().isBlank()) {
             RAMROMSpecs = Arrays.stream(product.get().getInternalMemory().split(","))
                 .map(String::trim)
                 .collect(Collectors.toList());
         }
-        if(!product.get().getColors().isEmpty() && !product.get().getColors().isBlank()) {
+        if(product.get().getColors() != null && !product.get().getColors().isBlank()) {
             ColorSpecs = Arrays.stream(product.get().getColors().split(","))
                 .map(String::trim)
                 .collect(Collectors.toList());
