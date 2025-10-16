@@ -2,6 +2,7 @@ package com.erp.erp.domain.model.payment;
 
 import com.erp.erp.application.dto.response.PaymentResponseDto;
 import com.erp.erp.domain.enums.PaymentMode;
+import java.util.Collection;
 import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -48,5 +49,11 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
   List<PaymentResponseDto> findByModeWithBillAndTicket(
       @Param("mode") PaymentMode mode
   );
+
+  @Query("select p from Payment p where p.invoice.id in :invoiceIds")
+  List<Payment> findByInvoiceIds(Collection<Long> invoiceIds);
+
+  @Query("select p from Payment p where p.bill.soldTableId in :billIds")
+  List<Payment> findByBillIds(Collection<Long> billIds);
 
 }

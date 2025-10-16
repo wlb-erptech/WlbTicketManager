@@ -1,5 +1,6 @@
 package com.erp.erp.domain.model.ticket;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -18,5 +19,12 @@ public interface SoldStatusRepository extends JpaRepository<SoldStatus, Long> {
         and b.storeId in :storeIds
       """)
     List<SoldStatus> findAllWithBillCredits(@Param("storeIds") Set<Long> storeIds);
+
+    @Query("""
+    select s from SoldStatus s
+    where s.storeId in :storeIds
+    order by s.billDate desc, s.soldTableId desc
+  """)
+    List<SoldStatus> findByStores(Collection<Long> storeIds);
 
 }

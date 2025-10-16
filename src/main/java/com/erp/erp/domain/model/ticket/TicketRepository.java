@@ -51,4 +51,10 @@ public interface TicketRepository extends JpaRepository<Ticket, Long>, JpaSpecif
     """)
   Set<Long> findListedIds(@Param("ids") Set<Long> ids);
 
+  @Query("select t from Ticket t where t.invoice.id in :invoiceIds")
+  List<Ticket> findByInvoiceIds(Collection<Long> invoiceIds);
+
+  @Query("select t from Ticket t where t.bill.soldTableId in :billIds")
+  List<Ticket> findByBillIds(Collection<Long> billIds);
+
 }
