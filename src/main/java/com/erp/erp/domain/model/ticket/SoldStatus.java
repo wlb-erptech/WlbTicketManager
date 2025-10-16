@@ -1,5 +1,6 @@
 package com.erp.erp.domain.model.ticket;
 
+import com.erp.erp.domain.enums.CustomerIdType;
 import com.erp.erp.domain.enums.PaymentMode;
 import com.erp.erp.domain.model.payment.Payment;
 import com.erp.erp.domain.model.shared.AbstractEntity;
@@ -14,6 +15,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 import jakarta.persistence.TableGenerator;
+import jakarta.validation.constraints.NotNull;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -59,6 +61,14 @@ public class SoldStatus extends AbstractEntity {
 
     @Column(name = "CUSTOMER_NAME", nullable = false)
     private String customerName;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "CUSTOMER_ID_TYPE", length = 32)
+    @NotNull
+    private CustomerIdType type;
+
+    @Column(name = "CUSTOMER_DOCUMENT_ID")
+    private String customerDocumentId;
 
     @Column(name = "PHONE_NUMBER", nullable = false)
     private String phoneNumber;

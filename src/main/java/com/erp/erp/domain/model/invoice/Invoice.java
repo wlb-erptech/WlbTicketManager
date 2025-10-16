@@ -1,20 +1,23 @@
 package com.erp.erp.domain.model.invoice;
 
+import com.erp.erp.domain.enums.CustomerIdType;
 import com.erp.erp.domain.enums.PaymentMode;
 import com.erp.erp.domain.model.payment.Payment;
 import com.erp.erp.domain.model.ticket.Ticket;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 import jakarta.persistence.TableGenerator;
+import jakarta.validation.constraints.NotNull;
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.AccessLevel;
@@ -53,8 +56,13 @@ public class Invoice {
   @Column(name = "CUSTOMER_NAME", nullable = false)
   private String customerName;
 
-  @Column(name = "CUSTOMER_AADHAR_ID", nullable = false)
-  private Long customerAadharId;
+  @Enumerated(EnumType.STRING)
+  @Column(name = "CUSTOMER_ID_TYPE", length = 32)
+  @NotNull
+  private CustomerIdType type;
+
+  @Column(name = "CUSTOMER_DOCUMENT_ID")
+  private String customerDocumentId;
 
   @Column(name = "STORE_ID", nullable = false)
   private Long storeId;

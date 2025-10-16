@@ -1,6 +1,6 @@
 package com.erp.erp.application.dto;
 
-import com.erp.erp.domain.enums.PaymentMode;
+import com.erp.erp.domain.enums.CustomerIdType;
 import java.util.List;
 import lombok.Builder;
 
@@ -14,7 +14,8 @@ public record InvoiceDto(
     String gstNumber,
     String gstId,
     String productPurchaseType,
-    Long customerAadharId,
+    CustomerIdType documentType,
+    String customerDocumentId,
     Long storeId,
     List<PaymentDto> payments
 
@@ -28,7 +29,6 @@ public record InvoiceDto(
         ", gstNumber='" + gstNumber + '\'' +
         ", gstId='" + gstId + '\'' +
         ", productPurchaseType='" + productPurchaseType + '\'' +
-        ", customerAadharId=" + customerAadharId +
         '}';
   }
 }

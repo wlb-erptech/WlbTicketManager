@@ -1,5 +1,6 @@
 package com.erp.erp.application.dto;
 
+import com.erp.erp.domain.enums.CustomerIdType;
 import com.erp.erp.domain.enums.PaymentMode;
 import com.erp.erp.domain.model.ticket.Ticket;
 import java.math.BigDecimal;
@@ -21,7 +22,8 @@ public record TicketDto(
     String gstId,
     String productPurchaseType,
     PaymentMode modeOfPayment,
-    Long customerAadharId,
+    CustomerIdType documentType,
+    String customerDocumentId,
     String itemSerialNo,
     String imeiNo,
     String batteryHealth,
@@ -51,7 +53,6 @@ public record TicketDto(
         ", gstId='" + gstId + '\'' +
         ", productPurchaseType='" + productPurchaseType + '\'' +
         ", modeOfPayment='" + modeOfPayment + '\'' +
-        ", customerAadharId=" + customerAadharId +
         '}';
   }
 
@@ -69,7 +70,8 @@ public record TicketDto(
 //        .gstId(ticket.getGstId())
         .productPurchaseType(ticket.getProductPurchaseType())
 //        .modeOfPayment(ticket.getModeOfPayment())
-        .customerAadharId(ticket.getCustomerAadharId())
+        .documentType(ticket.getType())
+        .customerDocumentId(ticket.getCustomerDocumentId())
         .itemSerialNo(ticket.getItemSerialNo())
         .imeiNo(ticket.getImeiNo())
         .batteryHealth(ticket.getBatteryHealth())

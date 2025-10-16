@@ -2,6 +2,7 @@ package com.erp.erp.application.dto.response;
 
 import com.erp.erp.application.dto.InvoiceProductDto;
 import com.erp.erp.application.dto.PaymentDto;
+import com.erp.erp.domain.enums.CustomerIdType;
 import com.erp.erp.domain.enums.PaymentMode;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -19,7 +20,8 @@ public record InvoiceResponseDto(
     BigDecimal remainingCredit,
     String gstNumber,
     String gstId,
-    Long customerAadharId,
+    CustomerIdType documentType,
+    String customerDocumentId,
     Long storeId,
     List<PaymentDto> payments,
     LocalDate invoiceDate,
@@ -36,7 +38,6 @@ public record InvoiceResponseDto(
         ", customerName='" + customerName + '\'' +
         ", gstNumber='" + gstNumber + '\'' +
         ", gstId='" + gstId + '\'' +
-        ", customerAadharId=" + customerAadharId +
         '}';
   }
 }

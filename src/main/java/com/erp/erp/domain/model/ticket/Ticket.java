@@ -1,5 +1,6 @@
 package com.erp.erp.domain.model.ticket;
 
+import com.erp.erp.domain.enums.CustomerIdType;
 import com.erp.erp.domain.enums.TicketStatus;
 import com.erp.erp.domain.model.client.Store;
 import com.erp.erp.domain.model.invoice.Invoice;
@@ -78,8 +79,13 @@ public class Ticket extends AbstractEntity {
   @Column(name = "REFURBISHED_COST")
   private BigDecimal refurbishedCost;
 
-  @Column(name = "CUSTOMER_AADHAR_ID")
-  private Long customerAadharId;
+  @Enumerated(EnumType.STRING)
+  @Column(name = "CUSTOMER_ID_TYPE", length = 32)
+  @NotNull
+  private CustomerIdType type;
+
+  @Column(name = "CUSTOMER_DOCUMENT_ID")
+  private String customerDocumentId;
 
   @Column(name = "ITEM_ID", nullable = false)
   private Long itemId;

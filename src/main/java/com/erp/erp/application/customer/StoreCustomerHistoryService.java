@@ -54,10 +54,10 @@ public class StoreCustomerHistoryService {
         .collect(Collectors.groupingBy(t -> t.getInvoice().getId()));
 
     // 3) Group invoices by customer key (from invoice fields)
-    record CKey(String phone, Long aadhar, String name) {}
+    record CKey(String phone, String aadhar, String name) {}
     Map<CKey, List<Invoice>> invByCustomer = new LinkedHashMap<>();
     for (Invoice i : invoices) {
-      CKey key = new CKey(ns(i.getPhoneNumber()), i.getCustomerAadharId(), ns(i.getCustomerName()));
+      CKey key = new CKey(ns(i.getPhoneNumber()), i.getCustomerDocumentId(), ns(i.getCustomerName()));
       invByCustomer.computeIfAbsent(key, __ -> new ArrayList<>()).add(i);
     }
 

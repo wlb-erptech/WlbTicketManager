@@ -1,5 +1,6 @@
 package com.erp.erp.application.dto.response;
 
+import com.erp.erp.domain.enums.CustomerIdType;
 import com.erp.erp.domain.enums.PaymentMode;
 import com.erp.erp.domain.enums.TicketStatus;
 import com.erp.erp.domain.model.ticket.Ticket;
@@ -20,7 +21,8 @@ public class TicketResponseDto {
   private PaymentMode modeOfPayment;
   private BigDecimal acquisitionCost;
   private BigDecimal refurbishedCost;
-  private Long customerAadharId;
+  private CustomerIdType documentType;
+  private String customerDocumentId;
   private Long itemId;
   private String brand;
   private String userEmail;
@@ -57,7 +59,8 @@ public class TicketResponseDto {
 //        .modeOfPayment(ticket.getModeOfPayment())
         .acquisitionCost(ticket.getAcquisitionCost())
         .refurbishedCost(ticket.getRefurbishedCost())
-        .customerAadharId(ticket.getCustomerAadharId())
+        .documentType(ticket.getType())
+        .customerDocumentId(ticket.getCustomerDocumentId())
         .itemId(ticket.getItemId())
         .brand(ticket.getBrand())
         .userEmail(ticket.getUserEmail())

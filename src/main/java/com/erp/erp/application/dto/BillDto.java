@@ -1,5 +1,6 @@
 package com.erp.erp.application.dto;
 
+import com.erp.erp.domain.enums.CustomerIdType;
 import com.erp.erp.domain.enums.PaymentMode;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -15,6 +16,8 @@ public record BillDto(
     String phoneNumber,
     Long storeId,
     String customerName,
+    CustomerIdType documentType,
+    String customerDocumentId,
     String gstId,
     String onlineTrxId,
     String placeOfSale,
