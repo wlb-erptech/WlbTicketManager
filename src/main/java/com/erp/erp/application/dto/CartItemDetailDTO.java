@@ -18,7 +18,7 @@ public record CartItemDetailDTO(
     BigDecimal sellingCost,
     String ramRomSpecs,
     String colorSpecs,
-    String comment,
+    String comments,
     String productName,
     String brand
 ) {}
