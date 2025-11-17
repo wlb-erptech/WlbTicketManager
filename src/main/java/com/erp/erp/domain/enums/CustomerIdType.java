@@ -5,5 +5,6 @@ public enum CustomerIdType {
   DRIVING_LICENSE,
   PASSPORT,
   VOTER_ID,
-  PAN
+  PAN,
+  NO_DOC
 }
