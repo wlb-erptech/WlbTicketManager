@@ -12,7 +12,7 @@ public interface ProductMasterRepository extends JpaRepository<GsmProductMaster,
 
   Optional<GsmProductMaster> findByGsmProductMasterId(Long productMasterId);
 
-  Page<ProductDto> findByBrandIgnoreCase(String brand, Pageable pageable);
+  Page<GsmProductMaster> findByBrandIgnoreCase(String brand, Pageable pageable);
 
   @Query(
       value = """

@@ -19,7 +19,7 @@ public class AddBuyItemRequest {
   private BigDecimal refurbishedCost;
   private String ramRomSpecs;
   private String colorSpecs;
-  private String comment;
+  private String comments;
   private String productName;
   private String brand;
   private String cartType;

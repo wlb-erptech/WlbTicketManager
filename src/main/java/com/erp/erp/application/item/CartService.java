@@ -232,7 +232,7 @@ public class CartService {
           .refurbishedCost(req.getRefurbishedCost())
           .ramRomSpecs(req.getRamRomSpecs())
           .colorSpecs(req.getColorSpecs())
-          .comment(req.getComment())
+          .comment(req.getComments())
           .productName(req.getProductName())
           .brand(req.getBrand())
           .build();

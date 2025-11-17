@@ -4,7 +4,15 @@ import jakarta.persistence.*;
 import lombok.*;
 
 @Entity
-@Table(name = "GSM_PRODUCT_MASTER")
+@Table(
+    name = "GSM_PRODUCT_MASTER",
+    uniqueConstraints = {
+        @UniqueConstraint(
+            name = "uk_gsm_brand_phone",
+            columnNames = { "brand", "phone_name" }
+        )
+    }
+)
 @Getter
 @Setter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)

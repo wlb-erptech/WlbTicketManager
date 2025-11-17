@@ -1,8 +1,12 @@
 package com.erp.erp.application.product;
 
 import com.erp.erp.application.dto.ProductDto;
+import com.erp.erp.application.dto.response.GsmProductCompactDto;
+import com.erp.erp.application.dto.response.ProductMasterDto;
 import com.erp.erp.domain.model.item.GsmProductMaster;
 import com.erp.erp.domain.model.item.ProductMasterRepository;
+import com.erp.erp.infrastructure.utility.GsmProductMapper;
+import com.erp.erp.infrastructure.utility.ProductMasterMapper;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -23,15 +27,24 @@ public class ProductService {
     private final ProductMasterRepository productMasterRepository;
 
     public Page<ProductDto> getByBrand(String brand, int page) {
-        Pageable pg = PageRequest.of(page, 10, Sort.by("productName").ascending());
-        return productMasterRepository
-            .findByBrandIgnoreCase(brand, pg);
+        Pageable pg = PageRequest.of(page, 10, Sort.by("phoneName").ascending());
+        Page<GsmProductMaster> entityPage =
+            productMasterRepository.findByBrandIgnoreCase(brand, pg);
+
+        return entityPage.map(e ->
+            new ProductDto(
+                e.getGsmProductMasterId(),
+                e.getPhoneName(),
+                e.getPhoneLink()
+            )
+        );
     }
 
-    public Page<GsmProductMaster> getByProductName(String brand, String productName, int page) {
+    public Page<ProductMasterDto> getByProductName(String brand, String productName, int page) {
         Pageable pg = PageRequest.of(page, 10, Sort.by("phoneName").ascending());
-        return productMasterRepository
+        Page<GsmProductMaster> entityPage = productMasterRepository
             .findByBrandAndFuzzyName(brand, productName, pg);
+        return entityPage.map(ProductMasterMapper::toDto);
     }
 
     public Map<String, List<String>> getSpecsByProduct(Long productId) {
