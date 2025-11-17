@@ -29,7 +29,7 @@ public class ProductService {
     }
 
     public Page<GsmProductMaster> getByProductName(String brand, String productName, int page) {
-        Pageable pg = PageRequest.of(page, 10, Sort.by("productName").ascending());
+        Pageable pg = PageRequest.of(page, 10, Sort.by("phoneName").ascending());
         return productMasterRepository
             .findByBrandAndFuzzyName(brand, productName, pg);
     }
