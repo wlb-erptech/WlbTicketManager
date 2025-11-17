@@ -1,7 +1,7 @@
 package com.erp.erp.application.product;
 
 import com.erp.erp.application.dto.ProductDto;
-import com.erp.erp.domain.model.item.ProductMaster;
+import com.erp.erp.domain.model.item.GsmProductMaster;
 import com.erp.erp.domain.model.item.ProductMasterRepository;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -28,32 +28,32 @@ public class ProductService {
             .findByBrandIgnoreCase(brand, pg);
     }
 
-    public Page<ProductMaster> getByProductName(String brand, String productName, int page) {
+    public Page<GsmProductMaster> getByProductName(String brand, String productName, int page) {
         Pageable pg = PageRequest.of(page, 10, Sort.by("productName").ascending());
         return productMasterRepository
             .findByBrandAndFuzzyName(brand, productName, pg);
     }
 
     public Map<String, List<String>> getSpecsByProduct(Long productId) {
-        Optional<ProductMaster> product = productMasterRepository.findByProductMasterId(productId);
+        Optional<GsmProductMaster> product = productMasterRepository.findByGsmProductMasterId(productId);
         if(product.isEmpty()) {
             throw new IllegalArgumentException("Product not found.");
         }
-        List<String> RAMROMSpecs = new ArrayList<>();
-        List<String> ColorSpecs = new ArrayList<>();
-        if (product.get().getInternalMemory() != null && !product.get().getInternalMemory().isBlank()) {
-            RAMROMSpecs = Arrays.stream(product.get().getInternalMemory().split(","))
+        List<String> ramRomSpecs = new ArrayList<>();
+        List<String> colorSpecs = new ArrayList<>();
+        if (product.get().getMemoryInternal() != null && !product.get().getMemoryInternal().isBlank()) {
+            ramRomSpecs = Arrays.stream(product.get().getMemoryInternal().split(","))
                 .map(String::trim)
                 .collect(Collectors.toList());
         }
-        if(product.get().getColors() != null && !product.get().getColors().isBlank()) {
-            ColorSpecs = Arrays.stream(product.get().getColors().split(","))
+        if(product.get().getMiscColors() != null && !product.get().getMiscColors().isBlank()) {
+            colorSpecs = Arrays.stream(product.get().getMiscColors().split(","))
                 .map(String::trim)
                 .collect(Collectors.toList());
         }
         return Map.of(
-            "RAM-ROM specs", RAMROMSpecs,
-            "Color specs", ColorSpecs
+            "RAM-ROM specs", ramRomSpecs,
+            "Color specs", colorSpecs
         );
     }
 

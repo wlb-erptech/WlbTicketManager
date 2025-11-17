@@ -8,16 +8,16 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
-public interface ProductMasterRepository extends JpaRepository<ProductMaster, Long> {
+public interface ProductMasterRepository extends JpaRepository<GsmProductMaster, Long> {
 
-  Optional<ProductMaster> findByProductMasterId(Long productMasterId);
+  Optional<GsmProductMaster> findByGsmProductMasterId(Long productMasterId);
 
   Page<ProductDto> findByBrandIgnoreCase(String brand, Pageable pageable);
 
   @Query(
       value = """
       SELECT t
-        FROM ProductMaster t
+        FROM GsmProductMaster t
        WHERE 
          (
            :brand IS NULL 
@@ -28,7 +28,7 @@ public interface ProductMasterRepository extends JpaRepository<ProductMaster, Lo
          (
            :productName IS NULL 
            OR :productName = '' 
-           OR LOWER(t.productName) LIKE LOWER(CONCAT('%', :productName, '%'))
+           OR LOWER(t.phoneName) LIKE LOWER(CONCAT('%', :productName, '%'))
          )
          AND 
          NOT (
@@ -38,7 +38,7 @@ public interface ProductMasterRepository extends JpaRepository<ProductMaster, Lo
     """,
       countQuery = """
       SELECT COUNT(t)
-        FROM ProductMaster t
+        FROM GsmProductMaster t
        WHERE 
          (
            :brand IS NULL 
@@ -49,7 +49,7 @@ public interface ProductMasterRepository extends JpaRepository<ProductMaster, Lo
          (
            :productName IS NULL 
            OR :productName = '' 
-           OR LOWER(t.productName) LIKE LOWER(CONCAT('%', :productName, '%'))
+           OR LOWER(t.phoneName) LIKE LOWER(CONCAT('%', :productName, '%'))
          )
          AND 
          NOT (
@@ -58,7 +58,7 @@ public interface ProductMasterRepository extends JpaRepository<ProductMaster, Lo
          )
     """
   )
-  Page<ProductMaster> findByBrandAndFuzzyName(
+  Page<GsmProductMaster> findByBrandAndFuzzyName(
       @Param("brand")       String brand,
       @Param("productName") String productName,
       Pageable pageable

@@ -2,7 +2,7 @@ package com.erp.erp.application.controller;
 
 import com.erp.erp.application.dto.ProductDto;
 import com.erp.erp.application.product.ProductService;
-import com.erp.erp.domain.model.item.ProductMaster;
+import com.erp.erp.domain.model.item.GsmProductMaster;
 import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -43,7 +43,7 @@ public class ProductController {
       @RequestParam(value = "productName", required = false) String productName,
       @RequestParam(defaultValue = "0") int page) {
     try {
-      Page<ProductMaster> productDtoPage = productService.getByProductName(brand, productName, page);
+      Page<GsmProductMaster> productDtoPage = productService.getByProductName(brand, productName, page);
       if (productDtoPage.isEmpty()) {
         return ResponseEntity.noContent().build();
       }
