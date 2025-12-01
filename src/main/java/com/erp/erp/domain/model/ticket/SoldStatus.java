@@ -62,10 +62,11 @@ public class SoldStatus extends AbstractEntity {
     @Column(name = "CUSTOMER_NAME", nullable = false)
     private String customerName;
 
+    @NotNull
     @Enumerated(EnumType.STRING)
     @Column(name = "CUSTOMER_ID_TYPE", length = 32)
-    @NotNull
-    private CustomerIdType type;
+    @Builder.Default
+    private CustomerIdType type = CustomerIdType.NO_DOC;
 
     @Column(name = "CUSTOMER_DOCUMENT_ID")
     private String customerDocumentId;

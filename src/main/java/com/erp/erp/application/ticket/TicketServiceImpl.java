@@ -27,7 +27,9 @@ import com.erp.erp.domain.model.user.UserRepository;
 import com.erp.erp.infrastructure.utility.BillMapper;
 import com.erp.erp.infrastructure.utility.DateTimeFormatterUtil;
 import com.erp.erp.infrastructure.utility.InvoiceMapper;
+import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityNotFoundException;
+import jakarta.persistence.PersistenceContext;
 import jakarta.persistence.criteria.Expression;
 import jakarta.persistence.criteria.Join;
 import jakarta.persistence.criteria.JoinType;
@@ -574,66 +576,75 @@ public class TicketServiceImpl implements TicketService {
   @Override
   @Transactional
   public BillResponseDto checkoutSellCart(String userEmail, BillDto billDto) {
-    Optional<User> user = userRepository.findByUserEmail(userEmail);
-    if (user.isEmpty()) {
-      throw new UsernameNotFoundException("No user found for user " + userEmail);
-    }
-    Optional<Store> matchingStore = user.get().getStores().stream()
-        .filter(s -> s.getId().equals(billDto.storeId()))
-        .findFirst();
-    if (matchingStore.isEmpty()) {
-      throw new IllegalArgumentException("No store found with your ID for " + user.get().getUserEmail());
-    }
-    Cart sellCart = cartService.getOrCreateSellCart(userEmail);
-
-    List<Long> ticketIds = sellCart.getItems().stream()
-        .map(CartItem::getItemId)
-        .collect(Collectors.toList());
-
-    List<Ticket> tickets = ticketRepository.findAllById(ticketIds);
-    for (Ticket ticket : tickets) {
-      if (ticket.getTicketStatus() == TicketStatus.SOLD) {
-        throw new IllegalArgumentException("Product already sold : " + ticket.getTicketId());
-      } else if (ticket.getTicketStatus() != TicketStatus.LISTED) {
-        throw new IllegalArgumentException("Product need to be on Listed Status to be sold : " + ticket.getTicketId());
-      } else if (ticket.getIsDeleted().equalsIgnoreCase("Y")) {
-        throw new IllegalArgumentException("This ticket is deleted : " + ticket.getTicketId());
-      } else {
-        ticket.setTicketStatus(TicketStatus.SOLD);
+    try {
+      Optional<User> user = userRepository.findByUserEmail(userEmail);
+      if (user.isEmpty()) {
+        throw new UsernameNotFoundException("No user found for user " + userEmail);
       }
+      Optional<Store> matchingStore = user.get().getStores().stream()
+          .filter(s -> s.getId().equals(billDto.storeId()))
+          .findFirst();
+      if (matchingStore.isEmpty()) {
+        throw new IllegalArgumentException("No store found with your ID for " + user.get().getUserEmail());
+      }
+      Cart sellCart = cartService.getOrCreateSellCart(userEmail);
+
+      List<Long> ticketIds = sellCart.getItems().stream()
+          .map(CartItem::getItemId)
+          .collect(Collectors.toList());
+
+      List<Ticket> tickets = ticketRepository.findAllById(ticketIds);
+      for (Ticket ticket : tickets) {
+        if (ticket.getTicketStatus() == TicketStatus.SOLD) {
+          throw new IllegalArgumentException("Product already sold : " + ticket.getTicketId());
+        } else if (ticket.getTicketStatus() != TicketStatus.LISTED) {
+          throw new IllegalArgumentException("Product need to be on Listed Status to be sold : " + ticket.getTicketId());
+        } else if (ticket.getIsDeleted().equalsIgnoreCase("Y")) {
+          throw new IllegalArgumentException("This ticket is deleted : " + ticket.getTicketId());
+        } else {
+          ticket.setTicketStatus(TicketStatus.SOLD);
+        }
+      }
+      System.out.println("storeId sell : " + billDto.storeId());
+      SoldStatus soldStatus = SoldStatus.builder()
+          .clientId(user.get().getClientId())
+          .phoneNumber(billDto.phoneNumber())
+          .customerName(billDto.customerName())
+          .type(billDto.documentType())
+          .customerDocumentId(billDto.customerDocumentId())
+          .storeId(billDto.storeId())
+          .gstId(billDto.gstId())
+          .onlineTrxId(billDto.onlineTrxId())
+          .placeOfSale(billDto.placeOfSale())
+          .profit(billDto.profit())
+          .billNumber(UUID.randomUUID().toString())
+          .billDate(LocalDate.now())
+          .gstNumber(billDto.gstNumber())
+          .isDeleted("N")
+          .build();
+      List<Payment> payments = billDto.payments().stream().map(paymentDto -> Payment.builder()
+          .modeOfPayment(paymentDto.getModeOfPayment())
+          .transactionId(paymentDto.getTransactionId())
+          .amount(paymentDto.getAmount())
+          .paidAt(paymentDto.getPaidAt() != null ? paymentDto.getPaidAt() : LocalDate.now())
+          .bill(soldStatus)
+          .build()).toList();
+      payments.forEach(p -> p.setBill(soldStatus));
+      tickets.forEach(t -> t.setBill(soldStatus));
+      soldStatus.setPayments(payments);
+      soldStatus.setTickets(tickets);
+      soldStatusRepository.save(soldStatus);
+      ticketRepository.saveAll(tickets);
+      cartService.clearCart(sellCart);
+      return BillMapper.toDto(soldStatus);
+    } catch (Exception e) {
+      Throwable root = e;
+      while (root.getCause() != null) {
+        root = root.getCause();
+      }
+      System.out.println("Root cause during sellCheckout " + root);
+      throw e;
     }
-    System.out.println("storeId sell : " + billDto.storeId());
-    SoldStatus soldStatus = SoldStatus.builder()
-        .clientId(user.get().getClientId())
-        .phoneNumber(billDto.phoneNumber())
-        .customerName(billDto.customerName())
-        .type(billDto.documentType())
-        .customerDocumentId(billDto.customerDocumentId())
-        .storeId(billDto.storeId())
-        .gstId(billDto.gstId())
-        .onlineTrxId(billDto.onlineTrxId())
-        .placeOfSale(billDto.placeOfSale())
-        .profit(billDto.profit())
-        .billNumber(UUID.randomUUID().toString())
-        .billDate(LocalDate.now())
-        .gstNumber(billDto.gstNumber())
-        .isDeleted("N")
-        .build();
-    List<Payment> payments = billDto.payments().stream().map(paymentDto -> Payment.builder()
-        .modeOfPayment(paymentDto.getModeOfPayment())
-        .transactionId(paymentDto.getTransactionId())
-        .amount(paymentDto.getAmount())
-        .paidAt(paymentDto.getPaidAt() != null ? paymentDto.getPaidAt() : LocalDate.now())
-        .bill(soldStatus)
-        .build()).toList();
-    payments.forEach(p -> p.setBill(soldStatus));
-    tickets.forEach(t -> t.setBill(soldStatus));
-    soldStatus.setPayments(payments);
-    soldStatus.setTickets(tickets);
-    soldStatusRepository.save(soldStatus);
-    ticketRepository.saveAll(tickets);
-    cartService.clearCart(sellCart);
-    return BillMapper.toDto(soldStatus);
   }
 
 
